@@ -5,16 +5,18 @@ const cookieParser = require('cookie-parser');
 const session = require('express-session');
 const FileStore = require('session-file-store')(session);
 const logger = require('morgan');
-var passport = require('passport');
-var authenticate = require('./authenticate');
+const passport = require('passport');
+const authenticate = require('./authenticate');
+const config = require('./config')
 
 const indexRouter = require('./routes/index');
 const usersRouter = require('./routes/usersRouter');
 const dishRouter = require('./routes/dishRouter');
 const promoRouter = require('./routes/promoRouter');
 const leaderRouter = require('./routes/leaderRouter');
+const uploadRouter = require('./routes/uploadRouter');
 const mongoose = require('mongoose');
-const url = 'mongodb://localhost:27017/conFusion';
+const url = config.mongUrl;
 const connect = mongoose.connect(url);
 
 connect.then((db) => {
@@ -25,6 +27,13 @@ connect.then((db) => {
 
 
 const app = express();
+app.all('*', (req, res, next) => {
+  if (req.secure) {
+    return next()
+  } else {
+    res.redirect(307, 'https://' + req.hostname + ':' + app.get('secPort') + req.url)
+  }
+})
 
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));
@@ -35,23 +44,15 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 // app.use(cookieParser('12345-67890-09876-54321'));
 
-app.use(session({
-  name: 'session-id',
-  secret: '12345-67890-09876-54321',
-  saveUninitialized: false,
-  resave: false,
-  store: new FileStore()
-}));
-
 app.use(passport.initialize());
-app.use(passport.session());
 app.use('/', indexRouter);
 app.use('/users', usersRouter);
-app.use(auth)
+
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/dishes', dishRouter);
 app.use('/promotions', promoRouter);
 app.use('/leaders', leaderRouter);
+app.use('/imageUpload', uploadRouter);
 
 
 const { constants } = require('buffer');
@@ -73,17 +74,5 @@ app.use(function (err, req, res, next) {
   res.render('error');
 });
 
-function auth(req, res, next) {
-  console.log(req.user);
-
-  if (!req.user) {
-    var err = new Error('You are not authenticated!');
-    err.status = 403;
-    next(err);
-  }
-  else {
-    next();
-  }
-}
 
 module.exports = app;

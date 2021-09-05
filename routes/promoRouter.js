@@ -2,48 +2,86 @@ const express = require('express');
 const bodyParser = require('body-parser');
 
 const promoRouter = express.Router();
+const { json, urlencoded } = require('body-parser');
+const mongoose = require('mongoose');
+const Promotions = require('../model/promotions');
+const authenticate = require('../authenticate')
 
-promoRouter.use(bodyParser.json());
-promoRouter.use(bodyParser.urlencoded({ extended: false }));
+
+promoRouter.use(json());
+promoRouter.use(urlencoded({ extended: true }, { useNewUrlParser: true }));
 
 promoRouter.route('/')
-    .all((req, res, next) => {
-        res.statusCode = 200;
-        res.setHeader('Content-Type', 'text/plain');
-        next();
-    })
     .get((req, res, next) => {
-        res.end('Will send all the dishes to you!');
+        Promotions.find({})
+            .then((promotions) => {
+                res.statusCode = 200;
+                res.setHeader('Content-Type', 'application/json');
+                res.json(promotions)
+            })
+            .catch((err) => next(err));
     })
-    .post((req, res, next) => {
-        res.end('Will add the dish: ' + req.body.name + ' with details: ' + req.body.description);
+    .post(authenticate.verifyUser, (req, res, next) => {
+        Promotions.create(req.body)
+            .then((promotions) => {
+                console.log('promotions Created', promotions)
+                res.statusCode = 200;
+                res.setHeader('Content-Type', 'application/json');
+                res.json(promotions)
+            })
+            .catch((err) => next(err));
+
     })
-    .put((req, res, next) => {
+    .put(authenticate.verifyUser, (req, res, next) => {
         res.statusCode = 403;
-        res.end('PUT operation not supported on /dishes');
+        res.end('PUT operation not supported on /Promotions');
     })
-    .delete((req, res, next) => {
-        res.end('Deleting all dishes');
-    });
-
-    promoRouter.route('/:promoId')
-    .all((req, res, next) => {
-        res.end('Will send details of the dish: ' + req.params.promoId + ' to you!');
+    .delete(authenticate.verifyUser, (req, res, next) => {
+        Promotions.remove({})
+            .then((promotions) => {
+                console.log('promotions Created', promotions)
+                res.statusCode = 200;
+                res.setHeader('Content-Type', 'application/json');
+                res.json(promotions)
+            })
+            .catch((err) => next(err));
     })
-
-    .post((req, res, next) => {
+promoRouter.route('/:promoId')
+    .get((req, res, next) => {
+        Promotions.findById(req.params.promoId)
+            .then((promotions) => {
+                console.log('promotions Created', promotions)
+                res.statusCode = 200;
+                res.setHeader('Content-Type', 'application/json');
+                res.json(promotions)
+            })
+            .catch((err) => next(err));
+    })
+    .post(authenticate.verifyUser, (req, res, next) => {
         res.statusCode = 403;
-        res.end('POST operation not supported on /dishes/' + req.params.promoId);
+        res.end('POST operation not supported on /Promotions/' + req.params.promoId);
     })
 
-    .put((req, res, next) => {
-        res.write('Updating the dish: ' + req.params.promoId + '\n');
-        res.end('Will update the dish: ' + req.body.name +
-            ' with details: ' + req.body.description);
+    .put(authenticate.verifyUser, (req, res, next) => {
+        Promotions.findByIdAndUpdate(req.params.promoId, {
+            $set: req.body
+        }, { new: true })
+            .then((promotions) => {
+                res.statusCode = 200;
+                res.setHeader('Content-Type', 'application/json');
+                res.json(promotions);
+            })
+            .catch((err) => next(err));
     })
 
-    .delete((req, res, next) => {
-        res.end('Deleting dish: ' + req.params.promoId);
+    .delete(authenticate.verifyUser, (req, res, next) => {
+        Promotions.findByIdAndRemove(req.params.promoId)
+            .then((res) => {
+                res.statusCode = 200;
+                res.setHeader('Content-Type', 'application/json');
+                res.json(res);
+            })
+            .catch((err) => next(err));
     });
 
 module.exports = promoRouter;

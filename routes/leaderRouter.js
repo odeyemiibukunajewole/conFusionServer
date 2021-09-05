@@ -2,48 +2,87 @@ const express = require('express');
 const bodyParser = require('body-parser');
 
 const leaderRouter = express.Router();
+const { json, urlencoded } = require('body-parser');
+const mongoose = require('mongoose');
+const Leaders = require('../model/leaders');
+const authenticate = require('../authenticate')
 
-leaderRouter.use(bodyParser.json());
-leaderRouter.use(bodyParser.urlencoded({ extended: false }));
+
+leaderRouter.use(json());
+leaderRouter.use(urlencoded({ extended: true }, { useNewUrlParser: true }));
 
 leaderRouter.route('/')
-    .all((req, res, next) => {
-        res.statusCode = 200;
-        res.setHeader('Content-Type', 'text/plain');
-        next();
-    })
     .get((req, res, next) => {
-        res.end('Will send all the dishes to you!');
+        Leaders.find({})
+            .then((leader) => {
+                res.statusCode = 200;
+                res.setHeader('Content-Type', 'application/json');
+                res.json(leader)
+            })
+            .catch((err) => next(err));
     })
-    .post((req, res, next) => {
-        res.end('Will add the dish: ' + req.body.name + ' with details: ' + req.body.description);
+    .post(authenticate.verifyUser, (req, res, next) => {
+        Leaders.create(req.body)
+            .then((leader) => {
+                console.log('leader Created', leader)
+                res.statusCode = 200;
+                res.setHeader('Content-Type', 'application/json');
+                res.json(leader)
+            })
+            .catch((err) => next(err));
+
     })
-    .put((req, res, next) => {
+    .put(authenticate.verifyUser, (req, res, next) => {
         res.statusCode = 403;
-        res.end('PUT operation not supported on /dishes');
+        res.end('PUT operation not supported on /Leaders');
     })
-    .delete((req, res, next) => {
-        res.end('Deleting all dishes');
+    .delete(authenticate.verifyUser, (req, res, next) => {
+        Leaders.remove({})
+            .then((leader) => {
+                console.log('leader Created', leader)
+                res.statusCode = 200;
+                res.setHeader('Content-Type', 'application/json');
+                res.json(leader)
+            })
+            .catch((err) => next(err));
+    })
+leaderRouter.route('/:leaderId')
+    .get((req, res, next) => {
+        Leaders.findById(req.params.leaderId)
+            .then((leader) => {
+                console.log('leader Created', leader)
+                res.statusCode = 200;
+                res.setHeader('Content-Type', 'application/json');
+                res.json(leader)
+            })
+            .catch((err) => next(err));
+    })
+    .post(authenticate.verifyUser, (req, res, next) => {
+        res.statusCode = 403;
+        res.end('POST operation not supported on /Leaders/' + req.params.leaderId);
+    })
+
+    .put(authenticate.verifyUser, (req, res, next) => {
+        Leaders.findByIdAndUpdate(req.params.leaderId, {
+            $set: req.body
+        }, { new: true })
+            .then((leader) => {
+                res.statusCode = 200;
+                res.setHeader('Content-Type', 'application/json');
+                res.json(leader);
+            })
+            .catch((err) => next(err));
+    })
+
+    .delete(authenticate.verifyUser, (req, res, next) => {
+        Leaders.findByIdAndRemove(req.params.leaderId)
+            .then((res) => {
+                res.statusCode = 200;
+                res.setHeader('Content-Type', 'application/json');
+                res.json(res);
+            })
+            .catch((err) => next(err));
     });
 
-    leaderRouter.route('/:leaderId')
-    .all((req, res, next) => {
-        res.end('Will send details of the dish: ' + req.params.leaderId + ' to you!');
-    })
-
-    .post((req, res, next) => {
-        res.statusCode = 403;
-        res.end('POST operation not supported on /dishes/' + req.params.leaderId);
-    })
-
-    .put((req, res, next) => {
-        res.write('Updating the dish: ' + req.params.leaderId + '\n');
-        res.end('Will update the dish: ' + req.body.name +
-            ' with details: ' + req.body.description);
-    })
-
-    .delete((req, res, next) => {
-        res.end('Deleting dish: ' + req.params.leaderId);
-    });
 
 module.exports = leaderRouter;
